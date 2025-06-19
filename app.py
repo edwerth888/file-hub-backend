@@ -1,4 +1,4 @@
-# app.py
+# app.py (เวอร์ชันเต็ม พร้อม Debug Log)
 import os
 import json
 from datetime import timedelta, datetime
@@ -11,7 +11,6 @@ from werkzeug.utils import secure_filename
 
 # --- การตั้งค่าพื้นฐาน ---
 app = Flask(__name__)
-# อนุญาตให้ทุกโดเมนเรียกใช้ API ได้ เพื่อให้ WordPress ใช้งานได้
 CORS(app, resources={r"/api/*": {"origins": "*"}}) 
 
 # --- การตั้งค่าความปลอดภัย ---
@@ -64,7 +63,6 @@ def register():
         return jsonify({"msg": "กรุณากรอกข้อมูลให้ครบถ้วน"}), 400
 
     users_data = load_data(USERS_FILE, {"approved_users": {}, "pending_users": {}})
-    # ตรวจสอบทั้งใน approved และ pending
     if username in users_data.get("approved_users", {}) or username in users_data.get("pending_users", {}):
         return jsonify({"msg": "ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว"}), 409
 
@@ -80,18 +78,35 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    username = request.json.get("username", None)
-    password = request.json.get("password", None)
-    users_data = load_data(USERS_FILE, {"approved_users": {}})
-    user_data = users_data.get("approved_users", {}).get(username, None)
-    
-    if user_data and check_password_hash(user_data["password_hash"], password):
-        additional_claims = {"role": user_data["role"], "full_name": user_data["full_name"]}
-        access_token = create_access_token(identity=username, additional_claims=additional_claims)
-        return jsonify(access_token=access_token)
-    
-    return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
+    try:
+        username = request.json.get("username", None)
+        password = request.json.get("password", None)
+        print(f"--- Login attempt ---")
+        print(f"Received username: '{username}'")
+        
+        users_data = load_data(USERS_FILE, {"approved_users": {}})
+        print(f"Loaded users.json data successfully.")
+        
+        user_data = users_data.get("approved_users", {}).get(username, None)
+        
+        if not user_data:
+            print(f"Login failed: Username '{username}' not found in approved_users.")
+            return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
 
+        print(f"Found user data for '{username}'. Checking password...")
+        
+        if check_password_hash(user_data["password_hash"], password):
+            print(f"Password for '{username}' is correct. Generating token.")
+            additional_claims = {"role": user_data["role"], "full_name": user_data["full_name"]}
+            access_token = create_access_token(identity=username, additional_claims=additional_claims)
+            return jsonify(access_token=access_token)
+        else:
+            print(f"Login failed: Incorrect password for '{username}'.")
+            return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
+    except Exception as e:
+        print(f"[ERROR] An unexpected error occurred in login function: {e}")
+        return jsonify({"msg": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"}), 500
+        
 # --- Admin Endpoints ---
 @app.route('/api/admin/all_users', methods=['GET'])
 @admin_required()
@@ -127,13 +142,13 @@ def approve_user():
     else:
         return jsonify({"msg": "User not found in pending list."}), 404
 
-# --- File Endpoints (Placeholder) ---
+# --- File Endpoints ---
 @app.route('/api/files', methods=['GET'])
 @jwt_required()
 def get_files():
     files_db = load_data(FILES_FILE, [])
     return jsonify(files_db)
-
+    
 # --- Main Execution ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=False)
