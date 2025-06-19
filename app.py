@@ -1,4 +1,4 @@
-# app.py (เวอร์ชันสมบูรณ์และปลอดภัย)
+# app.py (เวอร์ชันสมบูรณ์ + Debug ขั้นสูง)
 import os
 import json
 from datetime import timedelta
@@ -27,7 +27,8 @@ def load_data(file_path, default_data={}):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading {file_path}: {e}. Returning default data.")
         save_data(file_path, default_data)
         return default_data
 
@@ -80,15 +81,34 @@ def login():
     username = request.json.get("username", None)
     password = request.json.get("password", None)
     
+    print("\n--- NEW LOGIN ATTEMPT ---")
+    print(f"1. Received username: '{username}'")
+
     users_data = load_data(USERS_FILE)
+    print(f"2. Successfully loaded data from users.json")
+
     user_data = users_data.get("approved_users", {}).get(username, None)
     
-    if user_data and check_password_hash(user_data["password_hash"], password):
+    if not user_data:
+        print(f"3. FAILURE: Username '{username}' not found in 'approved_users'.")
+        return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
+
+    print(f"3. SUCCESS: Found user '{username}'.")
+    
+    stored_hash = user_data.get("password_hash")
+    print(f"4. Stored hash for '{username}' is: '{stored_hash}'")
+
+    is_password_correct = check_password_hash(stored_hash, password)
+    print(f"5. Result of check_password_hash: {is_password_correct}")
+
+    if is_password_correct:
+        print(f"6. SUCCESS: Password is correct. Generating JWT.")
         additional_claims = {"role": user_data["role"], "full_name": user_data["full_name"]}
         access_token = create_access_token(identity=username, additional_claims=additional_claims)
         return jsonify(access_token=access_token)
-    
-    return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
+    else:
+        print(f"6. FAILURE: Password does not match the stored hash.")
+        return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
 
 # --- Admin Endpoints ---
 @app.route('/api/admin/all_users', methods=['GET'])
