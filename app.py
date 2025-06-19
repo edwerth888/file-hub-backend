@@ -1,4 +1,4 @@
-# app.py (เวอร์ชันทดสอบ: ใส่ข้อมูลผู้ใช้โดยตรงเพื่อ Debug)
+# app.py (เวอร์ชันทดสอบ: แก้ไข CORS และใส่ข้อมูลผู้ใช้โดยตรง)
 import os
 import json
 from datetime import timedelta
@@ -10,7 +10,12 @@ from werkzeug.security import check_password_hash
 
 # --- การตั้งค่าพื้นฐาน ---
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}) 
+
+# --- ========================================================== ---
+# ---  แก้ไข CORS: ทำให้มีความยืดหยุ่นมากขึ้น ---
+# --- ========================================================== ---
+CORS(app) 
+# --- ========================================================== ---
 
 # --- การตั้งค่าความปลอดภัย ---
 app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY', 'a-strong-default-secret-key-for-dev')
