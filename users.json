@@ -1,22 +1,11 @@
-    {
-      "approved_users": {
-        "admin": {
-          "password_hash": "pbkdf2:sha256:600000$hG3yL9bQv8zKxN4a$20a6c2e42f6e9b4d4b1a2d5e9f8c7b6a1d3f5e8c7a6b5c4d3e2f1a0b9c8d7e6f",
-          "role": "admin",
-          "full_name": "ผู้ดูแลระบบ"
-        },
-        "admin001": {
-          "password_hash": "pbkdf2:sha256:600000$TjYKl2NvZ0iB3pEe$c58d0f1a2b9e4a3b7d8c6f5e1a0b9c8d7e6f1a5b9c8d7e6f1a5b9c8d7e6f1a5b",
-          "role": "admin",
-          "full_name": "แอดมิน 001"
-        }
-      },
-      "pending_users": {
-        "testuser": {
-          "password_hash": "pbkdf2:sha256:600000$kLmnPqR7sTuvWxYz$7e52a51f8a8b1c5c7d1e1f1a5b9c0d9e4f8a1b3c7d1e9f2a6b8c4d0e8f1a2b3c",
-          "role": "user",
-          "full_name": "ผู้ใช้ทดสอบ"
-        }
-      }
+{
+  "approved_users": {
+    "admin": {
+      "password_hash": "pbkdf2:sha256:600000$hG3yL9bQv8zKxN4a$20a6c2e42f6e9b4d4b1a2d5e9f8c7b6a1d3f5e8c7a6b5c4d3e2f1a0b9c8d7e6f",
+      "role": "admin",
+      "full_name": "ผู้ดูแลระบบ"
     }
-    
+  },
+  "pending_users": {}
+}
+
