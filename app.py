@@ -1,154 +1,86 @@
-# app.py (เวอร์ชันเต็ม พร้อม Debug Log)
-import os
-import json
-from datetime import timedelta, datetime
-from functools import wraps
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from flask_jwt_extended import create_access_token, jwt_required, JWTManager, get_jwt_identity, get_jwt
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+    # app.py (เวอร์ชันทดสอบ: ใส่ข้อมูลผู้ใช้โดยตรงเพื่อ Debug)
+    import os
+    import json
+    from datetime import timedelta
+    from functools import wraps
+    from flask import Flask, request, jsonify
+    from flask_cors import CORS
+    from flask_jwt_extended import create_access_token, jwt_required, JWTManager, get_jwt
+    from werkzeug.security import check_password_hash
 
-# --- การตั้งค่าพื้นฐาน ---
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}) 
+    # --- การตั้งค่าพื้นฐาน ---
+    app = Flask(__name__)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}) 
 
-# --- การตั้งค่าความปลอดภัย ---
-app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY', 'a-strong-default-secret-key-for-dev')
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=8)
-jwt = JWTManager(app)
+    # --- การตั้งค่าความปลอดภัย ---
+    app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY', 'a-strong-default-secret-key-for-dev')
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=8)
+    jwt = JWTManager(app)
 
-# --- การจัดการฐานข้อมูลแบบไฟล์ JSON ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-USERS_FILE = os.path.join(BASE_DIR, 'users.json')
-FILES_FILE = os.path.join(BASE_DIR, 'files.json')
-
-def load_data(file_path, default_data={}):
-    """ฟังก์ชันสำหรับโหลดข้อมูลจากไฟล์ JSON"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        save_data(file_path, default_data)
-        return default_data
-
-def save_data(file_path, data):
-    """ฟังก์ชันสำหรับบันทึกข้อมูลลงไฟล์ JSON"""
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# --- Decorator สำหรับตรวจสอบสิทธิ์ Admin ---
-def admin_required():
-    def wrapper(fn):
-        @wraps(fn)
-        @jwt_required()
-        def decorator(*args, **kwargs):
-            claims = get_jwt()
-            if claims.get("role") == "admin":
-                return fn(*args, **kwargs)
-            else:
-                return jsonify(msg="Admins only!"), 403
-        return decorator
-    return wrapper
-
-# --- User & Auth Endpoints ---
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-    full_name = data.get("full_name")
-
-    if not all([username, password, full_name]):
-        return jsonify({"msg": "กรุณากรอกข้อมูลให้ครบถ้วน"}), 400
-
-    users_data = load_data(USERS_FILE, {"approved_users": {}, "pending_users": {}})
-    if username in users_data.get("approved_users", {}) or username in users_data.get("pending_users", {}):
-        return jsonify({"msg": "ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว"}), 409
-
-    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-    users_data.setdefault("pending_users", {})[username] = {
-        "password_hash": hashed_password,
-        "role": "user",
-        "full_name": full_name
+    # --- ========================================================== ---
+    # ---  ข้อมูลผู้ใช้ชั่วคราวสำหรับ Debug (Hardcoded) ---
+    # --- ========================================================== ---
+    HARDCODED_USERS = {
+      "approved_users": {
+        "admin": {
+          "password_hash": "pbkdf2:sha256:600000$hG3yL9bQv8zKxN4a$20a6c2e42f6e9b4d4b1a2d5e9f8c7b6a1d3f5e8c7a6b5c4d3e2f1a0b9c8d7e6f",
+          "role": "admin",
+          "full_name": "ผู้ดูแลระบบ"
+        },
+        "admin001": {
+          "password_hash": "pbkdf2:sha256:600000$A0uF7bK2gL9hY3zV$9e3a6c8b2d1f0a5e7c4d3e2f1a0b9c8d7e6f1a5b9c8d7e6f1a5b9c8d7e6f1a5b",
+          "role": "admin",
+          "full_name": "แอดมิน 001"
+        }
+      }
     }
-    save_data(USERS_FILE, users_data)
+    # --- ========================================================== ---
+
+    # --- Login Endpoint (ใช้ข้อมูล Hardcoded) ---
+    @app.route('/api/login', methods=['POST'])
+    def login():
+        try:
+            username = request.json.get("username", None)
+            password = request.json.get("password", None)
+            print(f"--- Hardcoded Login attempt for: '{username}' ---")
+
+            # ใช้ข้อมูลจาก HARDCODED_USERS แทนการอ่านไฟล์
+            user_data = HARDCODED_USERS.get("approved_users", {}).get(username, None)
+            
+            if not user_data:
+                print(f"Login failed: User '{username}' not in hardcoded list.")
+                return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}), 401
+
+            print(f"Found hardcoded user '{username}'. Checking password...")
+            
+            # ใช้ password_hash ที่ถูกต้องจากข้อมูล Hardcoded
+            if check_password_hash(user_data["password_hash"], password):
+                print(f"Password for '{username}' is correct. SUCCESS.")
+                additional_claims = {"role": user_data["role"], "full_name": user_data["full_name"]}
+                access_token = create_access_token(identity=username, additional_claims=additional_claims)
+                return jsonify(access_token=access_token)
+            else:
+                print(f"Login failed: Incorrect password for '{username}'.")
+                return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}), 401
+        except Exception as e:
+            print(f"[ERROR] An unexpected error occurred: {e}")
+            return jsonify({"msg": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"}), 500
+            
+    # --- API อื่นๆ จะถูกปิดใช้งานชั่วคราวเพื่อการทดสอบ Login ---
+    @app.route('/api/register', methods=['POST'])
+    def register():
+        return jsonify({"msg": "Registration is temporarily disabled."}), 403
+
+    @app.route('/api/admin/<path:path>', methods=['GET', 'POST'])
+    def admin_routes(path):
+        return jsonify({"msg": "Admin routes are temporarily disabled."}), 403
+
+    @app.route('/api/files', methods=['GET'])
+    def files_route():
+         return jsonify([{"id": "test001", "name": "Test File.pdf", "category": "งาน IT", "size": "1 MB", "modified_date": "2025-01-01T12:00:00Z", "uploader": "System", "filename": ""}])
+
+    # --- Main Execution ---
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=5001, debug=False)
+
     
-    return jsonify({"msg": "ลงทะเบียนสำเร็จ! กรุณารอผู้ดูแลระบบอนุมัติบัญชีของคุณ"}), 201
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    try:
-        username = request.json.get("username", None)
-        password = request.json.get("password", None)
-        print(f"--- Login attempt ---")
-        print(f"Received username: '{username}'")
-        
-        users_data = load_data(USERS_FILE, {"approved_users": {}})
-        print(f"Loaded users.json data successfully.")
-        
-        user_data = users_data.get("approved_users", {}).get(username, None)
-        
-        if not user_data:
-            print(f"Login failed: Username '{username}' not found in approved_users.")
-            return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
-
-        print(f"Found user data for '{username}'. Checking password...")
-        
-        if check_password_hash(user_data["password_hash"], password):
-            print(f"Password for '{username}' is correct. Generating token.")
-            additional_claims = {"role": user_data["role"], "full_name": user_data["full_name"]}
-            access_token = create_access_token(identity=username, additional_claims=additional_claims)
-            return jsonify(access_token=access_token)
-        else:
-            print(f"Login failed: Incorrect password for '{username}'.")
-            return jsonify({"msg": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือบัญชียังไม่ได้รับการอนุมัติ"}), 401
-    except Exception as e:
-        print(f"[ERROR] An unexpected error occurred in login function: {e}")
-        return jsonify({"msg": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"}), 500
-        
-# --- Admin Endpoints ---
-@app.route('/api/admin/all_users', methods=['GET'])
-@admin_required()
-def get_all_users():
-    users_data = load_data(USERS_FILE, {"approved_users": {}})
-    approved_users = users_data.get("approved_users", {})
-    users_to_return = {u: {"role": d["role"], "full_name": d["full_name"]} for u, d in approved_users.items()}
-    return jsonify(users_to_return)
-
-@app.route('/api/admin/pending_users', methods=['GET'])
-@admin_required()
-def get_pending_users():
-    users_data = load_data(USERS_FILE, {"pending_users": {}})
-    pending_users = users_data.get("pending_users", {})
-    users_to_return = {u: {"full_name": d["full_name"]} for u, d in pending_users.items()}
-    return jsonify(users_to_return)
-
-@app.route('/api/admin/approve_user', methods=['POST'])
-@admin_required()
-def approve_user():
-    username_to_approve = request.json.get("username")
-    if not username_to_approve:
-        return jsonify({"msg": "Username is required"}), 400
-        
-    users_data = load_data(USERS_FILE, {"approved_users": {}, "pending_users": {}})
-    pending_users = users_data.get("pending_users", {})
-    
-    if username_to_approve in pending_users:
-        user_to_move = pending_users.pop(username_to_approve)
-        users_data.setdefault("approved_users", {})[username_to_approve] = user_to_move
-        save_data(USERS_FILE, users_data)
-        return jsonify({"msg": f"User '{username_to_approve}' has been approved."}), 200
-    else:
-        return jsonify({"msg": "User not found in pending list."}), 404
-
-# --- File Endpoints ---
-@app.route('/api/files', methods=['GET'])
-@jwt_required()
-def get_files():
-    files_db = load_data(FILES_FILE, [])
-    return jsonify(files_db)
-    
-# --- Main Execution ---
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=False)
